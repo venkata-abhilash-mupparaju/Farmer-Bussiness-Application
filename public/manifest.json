@@ -1,0 +1,16 @@
+{
+  "short_name": "రైతు ఖాతా",
+  "name": "రైతు గడ్డి వ్యాపారం & ఖాతా (Farmer Grass Business)",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#15803d",
+  "theme_color": "#15803d",
+  "display": "standalone",
+  "orientation": "portrait"
+}
