@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Package,
@@ -8,6 +8,7 @@ import {
   Phone,
   CheckCircle,
   AlertTriangle,
+  AlertCircle,
   Volume2,
   DollarSign,
   Mic,
@@ -18,7 +19,8 @@ import { translations, Language } from '../i18n/translations';
 import {
   formatRupees,
   estimateCOGSForSale,
-  convertToAcres
+  convertToAcres,
+  convertFromAcres
 } from '../services/financialCalculations';
 import { voice } from '../services/voice';
 import { VoiceInput } from './VoiceInput';
@@ -26,7 +28,7 @@ import { VoiceInput } from './VoiceInput';
 interface SellModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (sale: Sale) => void;
+  onSave: (sale: Sale) => { success: boolean; error?: string } | void;
   currentDate: string;
   customers: Customer[];
   inventory: InventoryStatus;
@@ -104,16 +106,63 @@ export const SellModal: React.FC<SellModalProps> = ({
   const paidVal = Number(amountPaid) || 0;
   const remainingDebt = Math.max(0, totalSaleAmount - paidVal);
 
-  // Check inventory stock availability
-  useEffect(() => {
+  // Check inventory stock availability and compute exact error message
+  const stockValidationError = useMemo(() => {
     if (grassType === 'ROLLS') {
-      const needed = Number(rollsCount) || 0;
-      setShowStockWarning(needed > 0 && needed > inventory.rolls.available);
+      const avail = inventory.rolls.available;
+      if (avail <= 0) {
+        return {
+          isZero: true,
+          message: lang === 'te' ? 'స్టాక్‌లో చుట్టలు అందుబాటులో లేవు.' : 'No Rolls available in stock.'
+        };
+      }
+      const requested = Number(rollsCount);
+      if (rollsCount !== '' && requested > avail) {
+        return {
+          isZero: false,
+          message: lang === 'te'
+            ? `తగినంత స్టాక్ లేదు. అందుబాటులో ఉన్న నిల్వ: ${avail}.`
+            : `Insufficient stock. Available quantity: ${avail}.`
+        };
+      }
+      if (rollsCount !== '' && requested <= 0) {
+        return {
+          isZero: false,
+          message: lang === 'te'
+            ? 'అమ్మకం సంఖ్య సున్నా కంటే ఎక్కువగా ఉండాలి.'
+            : 'Sale quantity must be greater than zero.'
+        };
+      }
     } else {
-      const neededAcres = convertToAcres(Number(area) || 0, areaUnit);
-      setShowStockWarning(neededAcres > 0 && neededAcres > inventory.raw_grass.available_acres);
+      const availAcres = inventory.raw_grass.available_acres;
+      if (availAcres <= 0) {
+        return {
+          isZero: true,
+          message: lang === 'te' ? 'స్టాక్‌లో పచ్చి గడ్డి అందుబాటులో లేదు.' : 'No Grass available in stock.'
+        };
+      }
+      const requested = Number(area);
+      const requestedAcres = convertToAcres(requested, areaUnit);
+      if (area !== '' && requestedAcres > availAcres + 0.00001) {
+        const availInUnit = Number(convertFromAcres(availAcres, areaUnit).toFixed(2));
+        return {
+          isZero: false,
+          message: lang === 'te'
+            ? `తగినంత స్టాక్ లేదు. అందుబాటులో ఉన్న నిల్వ: ${availInUnit}.`
+            : `Insufficient stock. Available quantity: ${availInUnit}.`
+        };
+      }
+      if (area !== '' && requested <= 0) {
+        return {
+          isZero: false,
+          message: lang === 'te'
+            ? 'విస్తీర్ణం సున్నా కంటే ఎక్కువగా ఉండాలి.'
+            : 'Sale quantity must be greater than zero.'
+        };
+      }
     }
-  }, [grassType, rollsCount, area, areaUnit, inventory]);
+    return null;
+  }, [grassType, rollsCount, area, areaUnit, inventory, lang]);
 
   if (!isOpen) return null;
 
@@ -159,6 +208,47 @@ export const SellModal: React.FC<SellModalProps> = ({
       return;
     }
 
+    // Strict Inventory Stock Validation before saving
+    if (grassType === 'ROLLS') {
+      const avail = inventory.rolls.available;
+      if (avail <= 0) {
+        voice.playTone('alert');
+        const err = lang === 'te' ? 'స్టాక్‌లో చుట్టలు అందుబాటులో లేవు.' : 'No Rolls available in stock.';
+        voice.speak(err, lang);
+        alert(err);
+        return;
+      }
+      if (Number(rollsCount) > avail) {
+        voice.playTone('alert');
+        const err = lang === 'te'
+          ? `తగినంత స్టాక్ లేదు. అందుబాటులో ఉన్న నిల్వ: ${avail}.`
+          : `Insufficient stock. Available quantity: ${avail}.`;
+        voice.speak(err, lang);
+        alert(err);
+        return;
+      }
+    } else {
+      const availAcres = inventory.raw_grass.available_acres;
+      if (availAcres <= 0) {
+        voice.playTone('alert');
+        const err = lang === 'te' ? 'స్టాక్‌లో పచ్చి గడ్డి అందుబాటులో లేదు.' : 'No Grass available in stock.';
+        voice.speak(err, lang);
+        alert(err);
+        return;
+      }
+      const neededAcres = convertToAcres(Number(area), areaUnit);
+      if (neededAcres > availAcres + 0.00001) {
+        voice.playTone('alert');
+        const availInUnit = Number(convertFromAcres(availAcres, areaUnit).toFixed(2));
+        const err = lang === 'te'
+          ? `తగినంత స్టాక్ లేదు. అందుబాటులో ఉన్న నిల్వ: ${availInUnit}.`
+          : `Insufficient stock. Available quantity: ${availInUnit}.`;
+        voice.speak(err, lang);
+        alert(err);
+        return;
+      }
+    }
+
     const cName = customerName.trim() || (lang === 'te' ? 'కస్టమర్' : 'Customer');
 
     // Find or create customer id
@@ -194,6 +284,16 @@ export const SellModal: React.FC<SellModalProps> = ({
       created_at: new Date().toISOString(),
     };
 
+    // Save and check backend validation response
+    const saveResult = onSave(newSale);
+    if (saveResult && !saveResult.success) {
+      voice.playTone('alert');
+      const err = saveResult.error || (lang === 'te' ? 'అమ్మకం నమోదు కాలేదు' : 'Sale could not be saved');
+      voice.speak(err, lang);
+      alert(err);
+      return;
+    }
+
     voice.playTone('cash');
     if (remainingDebt > 0) {
       voice.speak(
@@ -206,7 +306,6 @@ export const SellModal: React.FC<SellModalProps> = ({
       voice.speak(t.speakSaleSaved, lang);
     }
 
-    onSave(newSale);
     onClose();
   };
 
@@ -268,8 +367,16 @@ export const SellModal: React.FC<SellModalProps> = ({
                   <Package className="w-6 h-6" />
                 </div>
                 <span className="font-black text-base">{t.rolls}</span>
-                <span className="text-xs text-gray-500">
-                  {lang === 'te' ? `నిల్వ: ${inventory.rolls.available}` : `Stock: ${inventory.rolls.available}`}
+                <span
+                  className={`text-xs font-bold mt-1 ${
+                    inventory.rolls.available <= 0
+                      ? 'text-red-700 bg-red-100 px-2 py-0.5 rounded-full'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {inventory.rolls.available <= 0
+                    ? t.outOfStock
+                    : `${lang === 'te' ? 'నిల్వ' : 'Stock'}: ${inventory.rolls.available}`}
                 </span>
               </button>
 
@@ -294,27 +401,28 @@ export const SellModal: React.FC<SellModalProps> = ({
                   <Layers className="w-6 h-6" />
                 </div>
                 <span className="font-black text-base">{t.rawGrass}</span>
-                <span className="text-xs text-gray-500">
-                  {lang === 'te'
-                    ? `నిల్వ: ${Number(inventory.raw_grass.available_acres.toFixed(2))} ఎక.`
-                    : `Stock: ${Number(inventory.raw_grass.available_acres.toFixed(2))} ac`}
+                <span
+                  className={`text-xs font-bold mt-1 ${
+                    inventory.raw_grass.available_acres <= 0
+                      ? 'text-red-700 bg-red-100 px-2 py-0.5 rounded-full'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {inventory.raw_grass.available_acres <= 0
+                    ? t.outOfStock
+                    : `${lang === 'te' ? 'నిల్వ' : 'Stock'}: ${Number(
+                        inventory.raw_grass.available_acres.toFixed(2)
+                      )} ${t.acres}`}
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Stock Exceeded Warning */}
-          {showStockWarning && (
-            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start space-x-2 text-amber-900 text-xs">
-              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">{t.notEnoughStockWarning}</p>
-                <p className="text-[11px] text-amber-700 mt-0.5">
-                  {lang === 'te'
-                    ? '(బయట నుంచి నేరుగా కొనుగోలు చేసి సరఫరా చేసినట్లుగా నమోదు చేయబడుతుంది)'
-                    : '(Will be tracked as external or direct fulfillment)'}
-                </p>
-              </div>
+          {/* Stock Error Banner */}
+          {stockValidationError && (
+            <div className="p-3.5 bg-red-50 border-2 border-red-500 rounded-2xl flex items-center space-x-2.5 text-red-950 text-xs sm:text-sm font-black shadow-sm animate-fadeIn">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <span>{stockValidationError.message}</span>
             </div>
           )}
 
@@ -341,20 +449,34 @@ export const SellModal: React.FC<SellModalProps> = ({
                   </span>
                 </div>
                 {/* Steppers */}
-                <div className="flex space-x-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {[5, 10, 20, 50].map((inc) => (
                     <button
                       key={inc}
                       type="button"
+                      disabled={inventory.rolls.available <= 0}
                       onClick={() => {
                         voice.playTone('tap');
-                        setRollsCount((prev) => (Number(prev) || 0) + inc);
+                        const next = Math.min(inventory.rolls.available, (Number(rollsCount) || 0) + inc);
+                        setRollsCount(next);
                       }}
-                      className="flex-1 py-1 bg-white border border-green-300 rounded-lg text-xs font-bold text-green-900 hover:bg-green-100 active:scale-95 shadow-sm"
+                      className="flex-1 py-1.5 bg-white border border-green-300 rounded-lg text-xs font-bold text-green-900 hover:bg-green-100 active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       +{inc}
                     </button>
                   ))}
+                  {inventory.rolls.available > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        voice.playTone('tap');
+                        setRollsCount(inventory.rolls.available);
+                      }}
+                      className="py-1.5 px-3 bg-emerald-100 border border-emerald-300 rounded-lg text-xs font-black text-emerald-900 hover:bg-emerald-200 active:scale-95 shadow-sm"
+                    >
+                      {lang === 'te' ? 'మొత్తం నిల్వ' : 'All Stock'} ({inventory.rolls.available})
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -415,6 +537,21 @@ export const SellModal: React.FC<SellModalProps> = ({
                     ))}
                   </div>
                 </div>
+                {inventory.raw_grass.available_acres > 0 && (
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        voice.playTone('tap');
+                        const availInUnit = Number(convertFromAcres(inventory.raw_grass.available_acres, areaUnit).toFixed(2));
+                        setArea(availInUnit);
+                      }}
+                      className="py-1 px-3 bg-emerald-100 border border-emerald-300 rounded-lg text-xs font-black text-emerald-900 hover:bg-emerald-200 active:scale-95 shadow-sm"
+                    >
+                      {lang === 'te' ? 'మొత్తం నిల్వ' : 'All Stock'} ({Number(convertFromAcres(inventory.raw_grass.available_acres, areaUnit).toFixed(2))} {areaUnit.toLowerCase()})
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Selling Price per Unit */}
@@ -606,10 +743,21 @@ export const SellModal: React.FC<SellModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 active:scale-[0.98] text-white font-black text-xl rounded-2xl shadow-xl flex items-center justify-center space-x-2 transition-all border-2 border-green-500"
+            disabled={!!stockValidationError}
+            className={`w-full py-4 font-black text-base sm:text-xl rounded-2xl shadow-xl flex items-center justify-center space-x-2 transition-all border-2 ${
+              stockValidationError
+                ? 'bg-gray-200 border-gray-300 text-gray-500 cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 active:scale-[0.98] text-white border-green-500'
+            }`}
           >
-            <CheckCircle className="w-6 h-6" />
-            <span>{t.save}</span>
+            {stockValidationError ? (
+              <AlertCircle className="w-6 h-6 flex-shrink-0" />
+            ) : (
+              <CheckCircle className="w-6 h-6 flex-shrink-0" />
+            )}
+            <span className="truncate">
+              {stockValidationError ? stockValidationError.message : t.save}
+            </span>
           </button>
         </div>
       </div>

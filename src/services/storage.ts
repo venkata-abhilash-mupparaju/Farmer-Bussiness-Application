@@ -4,8 +4,10 @@ import {
   Customer,
   DebtRepayment,
   Expense,
-  AppSettings
+  AppSettings,
+  AreaUnit
 } from '../types';
+import { convertToAcres, convertFromAcres } from './financialCalculations';
 
 const STORAGE_KEYS = {
   PURCHASES: 'farmer_purchases_v1',
@@ -114,7 +116,77 @@ export class StorageService {
     }
   }
 
-  saveSale(sale: Sale): void {
+  /**
+   * Validates inventory availability before saving a sale.
+   * Ensures:
+   * 1. Sale quantity > 0
+   * 2. Available stock > 0
+   * 3. Requested quantity <= available stock
+   * 4. Rolls and Raw Grass inventories are maintained completely independently.
+   * 5. Inventory cannot become negative.
+   */
+  validateSaleInventory(sale: Sale): { valid: boolean; error?: string } {
+    const qty = Number(sale.quantity);
+    if (isNaN(qty) || qty <= 0) {
+      return { valid: false, error: 'Sale quantity must be greater than zero.' };
+    }
+
+    const purchases = this.getPurchases();
+    const currentSales = this.getSales();
+
+    if (sale.grass_type === 'ROLLS') {
+      const rollPurchases = purchases.filter((p) => p.grass_type === 'ROLLS');
+      const otherRollSales = currentSales.filter((s) => s.grass_type === 'ROLLS' && s.id !== sale.id);
+
+      const totalPurchasedRolls = rollPurchases.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
+      const totalSoldRolls = otherRollSales.reduce((acc, s) => acc + (Number(s.quantity) || 0), 0);
+      const availableRolls = Math.max(0, totalPurchasedRolls - totalSoldRolls);
+
+      if (availableRolls <= 0) {
+        return { valid: false, error: 'No Rolls available in stock.' };
+      }
+
+      if (qty > availableRolls) {
+        return { valid: false, error: `Insufficient stock. Available quantity: ${availableRolls}.` };
+      }
+    } else if (sale.grass_type === 'RAW_GRASS') {
+      const rawPurchases = purchases.filter((p) => p.grass_type === 'RAW_GRASS');
+      const otherRawSales = currentSales.filter((s) => s.grass_type === 'RAW_GRASS' && s.id !== sale.id);
+
+      const totalPurchasedAcres = rawPurchases.reduce(
+        (acc, p) => acc + convertToAcres(Number(p.quantity) || 0, p.unit),
+        0
+      );
+      const totalSoldAcres = otherRawSales.reduce(
+        (acc, s) => acc + convertToAcres(Number(s.quantity) || 0, s.unit),
+        0
+      );
+      const availableAcres = Math.max(0, totalPurchasedAcres - totalSoldAcres);
+
+      if (availableAcres <= 0) {
+        return { valid: false, error: 'No Grass available in stock.' };
+      }
+
+      const requestedAcres = convertToAcres(qty, sale.unit);
+      if (requestedAcres > availableAcres + 0.00001) {
+        const availableInUnit = Number(convertFromAcres(availableAcres, sale.unit as AreaUnit).toFixed(2));
+        return {
+          valid: false,
+          error: `Insufficient stock. Available quantity: ${availableInUnit}.`
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  saveSale(sale: Sale): { success: boolean; error?: string } {
+    // Perform backend / data-layer inventory validation
+    const validation = this.validateSaleInventory(sale);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
     const list = this.getSales();
     const index = list.findIndex((s) => s.id === sale.id);
     if (index >= 0) {
@@ -128,6 +200,8 @@ export class StorageService {
     if (sale.customer_name) {
       this.ensureCustomer(sale.customer_id, sale.customer_name, sale.customer_phone);
     }
+
+    return { success: true };
   }
 
   deleteSale(id: string): void {

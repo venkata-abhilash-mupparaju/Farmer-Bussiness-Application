@@ -82,7 +82,12 @@ export const translations = {
     fullPaid: 'మొత్తం ఇచ్చారు',
     partialPaid: 'కొంత ఇచ్చారు',
     fullDebt: 'ఏమీ ఇవ్వలేదు (పూర్తి బాకీ)',
-    notEnoughStockWarning: 'దగ్గర ఉన్న నిల్వ కంటే ఎక్కువ అమ్ముతున్నారు! కొనసాగించాలా?',
+    notEnoughStockWarning: 'దగ్గర ఉన్న నిల్వ కంటే ఎక్కువ అమ్ముతున్నారు!',
+    noRollsStock: 'స్టాక్‌లో చుట్టలు అందుబాటులో లేవు.',
+    noGrassStock: 'స్టాక్‌లో పచ్చి గడ్డి అందుబాటులో లేదు.',
+    insufficientStock: 'తగినంత స్టాక్ లేదు. అందుబాటులో ఉన్న నిల్వ: ',
+    outOfStock: 'స్టాక్ లేదు (0)',
+    availableStockLabel: 'అందుబాటులో ఉన్న నిల్వ',
 
     // Debt Management
     debtManagementTitle: 'కస్టమర్ల బాకీల వివరాలు',
@@ -230,7 +235,12 @@ export const translations = {
     fullPaid: 'Fully Paid',
     partialPaid: 'Partially Paid',
     fullDebt: 'No Payment (Full Debt)',
-    notEnoughStockWarning: 'Selling quantity exceeds available stock! Continue anyway?',
+    notEnoughStockWarning: 'Selling quantity exceeds available stock!',
+    noRollsStock: 'No Rolls available in stock.',
+    noGrassStock: 'No Grass available in stock.',
+    insufficientStock: 'Insufficient stock. Available quantity: ',
+    outOfStock: 'Out of Stock (0)',
+    availableStockLabel: 'Available Stock',
 
     // Debt Management
     debtManagementTitle: 'Customer Debt Management',

@@ -161,11 +161,15 @@ export const App: React.FC = () => {
     autoSyncToCloud();
   };
 
-  const handleSaveSale = (newSale: Sale) => {
-    storage.saveSale(newSale);
+  const handleSaveSale = (newSale: Sale): { success: boolean; error?: string } => {
+    const result = storage.saveSale(newSale);
+    if (!result.success) {
+      return result;
+    }
     setSales(storage.getSales());
     setCustomers(storage.getCustomers());
     autoSyncToCloud();
+    return result;
   };
 
   const handleRecordRepayment = (newRepayment: DebtRepayment) => {
