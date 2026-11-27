@@ -96,9 +96,20 @@ ALTER TABLE debt_repayments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
 -- Allow Public/Anon access policies for single-tenant farmer app
+DROP POLICY IF EXISTS "Allow public anon access to daily_sessions" ON daily_sessions;
 CREATE POLICY "Allow public anon access to daily_sessions" ON daily_sessions FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public anon access to customers" ON customers;
 CREATE POLICY "Allow public anon access to customers" ON customers FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public anon access to purchases" ON purchases;
 CREATE POLICY "Allow public anon access to purchases" ON purchases FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public anon access to sales" ON sales;
 CREATE POLICY "Allow public anon access to sales" ON sales FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public anon access to debt_repayments" ON debt_repayments;
 CREATE POLICY "Allow public anon access to debt_repayments" ON debt_repayments FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public anon access to expenses" ON expenses;
 CREATE POLICY "Allow public anon access to expenses" ON expenses FOR ALL USING (true) WITH CHECK (true);

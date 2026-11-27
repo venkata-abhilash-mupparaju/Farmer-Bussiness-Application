@@ -419,11 +419,22 @@ ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE debt_repayments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow authenticated farmer access" ON daily_sessions;
 CREATE POLICY "Allow authenticated farmer access" ON daily_sessions FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated farmer access" ON customers;
 CREATE POLICY "Allow authenticated farmer access" ON customers FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated farmer access" ON purchases;
 CREATE POLICY "Allow authenticated farmer access" ON purchases FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated farmer access" ON sales;
 CREATE POLICY "Allow authenticated farmer access" ON sales FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated farmer access" ON debt_repayments;
 CREATE POLICY "Allow authenticated farmer access" ON debt_repayments FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated farmer access" ON expenses;
 CREATE POLICY "Allow authenticated farmer access" ON expenses FOR ALL USING (true);
 `;
   }
