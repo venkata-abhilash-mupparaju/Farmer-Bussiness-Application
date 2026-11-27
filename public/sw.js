@@ -1,12 +1,15 @@
 // Service Worker for Farmer Grass Business PWA
 // Provides 100% offline capability for agricultural fields with zero internet connectivity
 
-const CACHE_NAME = 'farmer-grass-v1';
+const CACHE_NAME = 'farmer-grass-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/maskable-icon-512.png',
 ];
 
 // Install Event: pre-cache static assets

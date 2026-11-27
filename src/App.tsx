@@ -11,6 +11,7 @@ import { SupabaseSettingsModal } from './components/SupabaseSettingsModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { VoiceAssistantButton } from './components/VoiceAssistantButton';
 import { ChangePinModal } from './components/ChangePinModal';
+import { InstallGuideModal } from './components/InstallGuideModal';
 
 import {
   Purchase,
@@ -65,6 +66,53 @@ export const App: React.FC = () => {
     title: string;
     message: string;
   } | null>(null);
+
+  // PWA Installation & Standalone state
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState<boolean>(() => {
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+    );
+  });
+  const [showInstallGuide, setShowInstallGuide] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleDisplayModeChange = (e: MediaQueryListEvent) => {
+      setIsStandalone(e.matches);
+    };
+    mediaQuery.addEventListener('change', handleDisplayModeChange);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      mediaQuery.removeEventListener('change', handleDisplayModeChange);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      voice.playTone('tap');
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        voice.playTone('cash');
+        const msg = lang === 'te' ? 'యాప్ ఫోన్‌లో ఇన్‌స్టాల్ అయింది!' : 'App installed on your phone!';
+        voice.speak(msg, lang);
+        setIsStandalone(true);
+      }
+      setDeferredPrompt(null);
+    } else {
+      setShowInstallGuide(true);
+    }
+  };
 
   // Auto sync to cloud when data changes if connected
   const autoSyncToCloud = () => {
@@ -257,12 +305,24 @@ export const App: React.FC = () => {
   // If App is Locked with PIN
   if (isLocked) {
     return (
-      <PinLockScreen
-        correctPin={settings.pin}
-        onUnlock={() => setIsLocked(false)}
-        lang={lang}
-        onUpdatePin={handleUpdatePin}
-      />
+      <>
+        <PinLockScreen
+          correctPin={settings.pin}
+          onUnlock={() => setIsLocked(false)}
+          lang={lang}
+          onUpdatePin={handleUpdatePin}
+          isStandalone={isStandalone}
+          onInstallApp={handleInstallApp}
+        />
+        <InstallGuideModal
+          isOpen={showInstallGuide}
+          onClose={() => {
+            voice.stop();
+            setShowInstallGuide(false);
+          }}
+          lang={lang}
+        />
+      </>
     );
   }
 
@@ -302,6 +362,8 @@ export const App: React.FC = () => {
           onDeleteSale={handleDeleteSalePrompt}
           onDeleteRepayment={handleDeleteRepaymentPrompt}
           onDeleteExpense={handleDeleteExpensePrompt}
+          isStandalone={isStandalone}
+          onInstallApp={handleInstallApp}
         />
       </main>
 
@@ -417,6 +479,15 @@ export const App: React.FC = () => {
         onUpdatePin={(newPin) => {
           handleUpdatePin(newPin);
           setIsChangePinOpen(false);
+        }}
+        lang={lang}
+      />
+
+      <InstallGuideModal
+        isOpen={showInstallGuide}
+        onClose={() => {
+          voice.stop();
+          setShowInstallGuide(false);
         }}
         lang={lang}
       />

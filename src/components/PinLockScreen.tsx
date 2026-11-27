@@ -9,6 +9,8 @@ interface PinLockScreenProps {
   onUnlock: () => void;
   lang: Language;
   onUpdatePin: (newPin: string) => void;
+  isStandalone?: boolean;
+  onInstallApp?: () => void;
 }
 
 export const PinLockScreen: React.FC<PinLockScreenProps> = ({
@@ -16,6 +18,8 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
   onUnlock,
   lang,
   onUpdatePin,
+  isStandalone,
+  onInstallApp,
 }) => {
   const t = translations[lang];
 
@@ -79,6 +83,21 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
         <p className="text-xs sm:text-sm text-green-200 font-semibold">
           {t.enterPin}
         </p>
+
+        {/* PWA Mobile Install Banner on Lock Screen */}
+        {!isStandalone && onInstallApp && (
+          <button
+            type="button"
+            onClick={() => {
+              voice.playTone('tap');
+              onInstallApp();
+            }}
+            className="mt-2 py-2 px-4 bg-white/15 hover:bg-white/25 active:scale-95 text-amber-300 border border-amber-300/40 rounded-full flex items-center justify-center space-x-1.5 text-xs font-bold shadow-md transition-all mx-auto"
+          >
+            <span>📱</span>
+            <span>{lang === 'te' ? 'యాప్‌ను ఫోన్‌లో ఇన్‌స్టాల్ చేసుకోండి' : 'Install App on Mobile'}</span>
+          </button>
+        )}
       </div>
 
       {/* PIN Dots Display */}

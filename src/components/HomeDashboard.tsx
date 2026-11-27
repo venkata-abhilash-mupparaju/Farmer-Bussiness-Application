@@ -47,6 +47,8 @@ interface HomeDashboardProps {
   onDeleteSale: (id: string) => void;
   onDeleteRepayment: (id: string) => void;
   onDeleteExpense: (id: string) => void;
+  isStandalone?: boolean;
+  onInstallApp?: () => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -67,43 +69,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onDeleteSale,
   onDeleteRepayment,
   onDeleteExpense,
+  isStandalone,
+  onInstallApp,
 }) => {
   const t = translations[lang];
-
-  // PWA Install State for Android / Mobile
-  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
-  const [isInstalled, setIsInstalled] = React.useState(false);
-
-  React.useEffect(() => {
-    const handleBeforeInstall = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    voice.playTone('tap');
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-      voice.playTone('cash');
-      const msg = lang === 'te' ? 'యాప్ ఫోన్‌లో ఇన్‌స్టాల్ అయింది!' : 'App installed on your phone!';
-      voice.speak(msg, lang);
-    }
-    setDeferredPrompt(null);
-  };
 
   // Voice readout helper
   const speakMetric = (label: string, amountStr: string) => {
@@ -119,7 +88,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   return (
     <div className="max-w-4xl mx-auto px-3 py-3 space-y-4 pb-24">
       {/* PWA Mobile Install Banner */}
-      {deferredPrompt && !isInstalled && (
+      {!isStandalone && onInstallApp && (
         <div className="bg-gradient-to-r from-emerald-800 to-green-900 text-white p-3 rounded-2xl shadow-lg border-2 border-amber-300 flex items-center justify-between animate-fadeIn">
           <div className="flex items-center space-x-2.5">
             <span className="text-2xl">📱</span>
@@ -134,7 +103,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
           <button
             type="button"
-            onClick={handleInstallClick}
+            onClick={onInstallApp}
             className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 active:scale-95 text-green-950 font-black text-xs rounded-xl shadow-md flex items-center space-x-1"
           >
             <span>{lang === 'te' ? 'ఇన్‌స్టాల్' : 'Install'}</span>
